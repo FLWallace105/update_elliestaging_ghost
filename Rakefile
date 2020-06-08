@@ -44,4 +44,48 @@ task :check_allocated_ellie_picks_subs do |t|
 
 end
 
+desc 'setup prepaid orders for Ellie Picks'
+task :setup_prepaid_orders do |t|
+    FixSubInfo::SubUpdater.new.setup_prepaid_orders
+end
+
+desc 'setup update prepaid config file'
+task :update_prepaid_config do |t|
+    FixSubInfo::SubUpdater.new.setup_prepaid_config
+end
+
+desc 'update prepaid order from config file'
+task :update_prepaid_from_config do |t|
+    FixSubInfo::SubUpdater.new.update_prepaid_orders
+
+end
+
+desc 'update matching subs from update_prepaid and generate csv'
+task :update_matching_subs_prepaid do |t|
+    FixSubInfo::SubUpdater.new.update_matching_subs_from_update_prepaid
+
+end
+
+desc 'setup prepaid subs charging this month'
+task :setup_prepaid_charging_this_month do |t|
+    FixSubInfo::SubUpdater.new.update_prepaid_sub_charging_this_month
+end
+
+desc 'load config file for updating prepaid subs charging this month'
+task :load_prepaid_sub_config do |t|
+    FixSubInfo::SubUpdater.new.load_update_prepaid_subs_config
+    
+end
+
+desc 'load current products for updating prepaid subs charging tomorrow'
+task :load_prepaid_sub_current_prods do |t|
+    FixSubInfo::SubUpdater.new.load_current_products
+end
+
+desc 'update prepaid charging tomorrow'
+task :update_prepaid_charging_tomorrow do |t|
+    FixSubInfo::SubUpdater.new.update_prepaid_charging_tomorrow
+end
+
+
 end

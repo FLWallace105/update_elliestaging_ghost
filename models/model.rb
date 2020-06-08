@@ -68,3 +68,11 @@ class SubscriptionsUpdated < ActiveRecord::Base
   class SubsUpdatedInventorySize < ActiveRecord::Base
     self.table_name = 'subs_updated_inventory_sizes'
   end
+
+  class UpdatePrepaidOrder < ActiveRecord::Base
+    self.table_name = "update_prepaid"
+  end
+
+  class UpdatePrepaidConfig < ActiveRecord::Base
+    self.table_name =  "update_prepaid_config"
+  end
