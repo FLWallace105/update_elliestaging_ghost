@@ -131,12 +131,12 @@ module FixSubInfo
         File.delete('elliestaging_order_subs.csv') if File.exist?('elliestaging_order_subs.csv')
 
         #Headers for CSV
-        column_header = ["susbcription_id", "address_id", "customer_id", "created_at", "updated_at", "next_charge_scheduled_at", "price", "status", "shopify_product_id", "shopify_variant_id", "sku", "raw_line_item_properties"]
+        column_header = ["susbcription_id", "address_id", "customer_id", "created_at", "updated_at", "next_charge_scheduled_at", "price", "status", "title", "shopify_product_id", "shopify_variant_id", "sku", "raw_line_item_properties"]
 
         CSV.open('elliestaging_order_subs.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
             column_header = nil
 
-        CSV.foreach('ghost_allocation_test_orders_6_5.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
+        CSV.foreach('ghost_allocation_test_orders_6_9.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
             puts row.inspect
             puts row['customer_id']
             my_customer_id = row['customer_id']
@@ -144,7 +144,7 @@ module FixSubInfo
             if !my_sub.nil?
                 puts my_sub.inspect
 
-                csv_data_out = [my_sub.subscription_id, my_sub.address_id, my_sub.customer_id, my_sub.created_at, my_sub.updated_at, my_sub.next_charge_scheduled_at, my_sub.status, my_sub.shopify_product_id, my_sub.shopify_variant_id, my_sub.sku, my_sub.raw_line_item_properties  ]
+                csv_data_out = [my_sub.subscription_id, my_sub.address_id, my_sub.customer_id, my_sub.created_at, my_sub.updated_at, my_sub.next_charge_scheduled_at, my_sub.price, my_sub.status, my_sub.product_title, my_sub.shopify_product_id, my_sub.shopify_variant_id, my_sub.sku, my_sub.raw_line_item_properties  ]
                 hdr << csv_data_out
             else
                 puts "No matching sub for the order"
@@ -243,7 +243,10 @@ module FixSubInfo
     def fix_orders_ellie_picks
         puts "Starting to fix orders Ellie Picks"
         #ghost_allocation_test_orders_6_5.csv
-        CSV.foreach('ghost_allocation_test_orders_6_5.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
+        #\copy (select orders.order_id, orders.scheduled_at, orders.customer_id, order_line_items_fixed.title, order_line_items_fixed.shopify_product_id, order_line_items_fixed.shopify_variant_id, orders.first_name, orders.last_name, orders.email, orders.line_items from orders, order_line_items_fixed  where order_line_items_fixed.order_id = orders.order_id and orders.scheduled_at > '2020-06-08' and orders.scheduled_at < '2020-06-10' and orders.is_prepaid = 1) to 'ghost_allocation_test_orders_6_9.csv' CSV HEADER;
+
+
+        CSV.foreach('ghost_allocation_test_orders_6_9.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
             #puts row.inspect
             my_order_id = row['order_id']
             my_order = Order.find_by_order_id(my_order_id)
@@ -313,7 +316,7 @@ module FixSubInfo
     CSV.open('checked_subscriptions.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
             column_header = nil
 
-        CSV.foreach('ghost_allocation_testing_6_5.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
+        CSV.foreach('testing_monthly_subs_6_9.csv', :encoding => 'ISO8859-1:utf-8', :headers => true) do |row|
             #puts row.inspect
             subscription_id = row['subscription_id']
             puts subscription_id
@@ -592,6 +595,257 @@ module FixSubInfo
 
         end
         #CSV output
+
+
+    end
+
+    def subs_no_queued_orders
+        "Starting processing subs no queued orders"
+
+        File.delete('validation_prepaid_sub_no_order.csv') if File.exist?('validation_prepaid_sub_no_order.csv')
+
+        #Headers for CSV
+        column_header = ["susbcription_id", "customer_id", "updated_at", "next_charge_scheduled_at", "status", "product_title", "shopify_product_id", "shopify_variant_id", "sku", "raw_line_item_properties", "new_title", "new_product_id", "new_variant_id", "new_sku", "product_collection", "new_properties"]
+
+        CSV.open('validation_prepaid_sub_no_order.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
+            column_header = nil
+
+        CSV.foreach('elliestaging_prepaid_sub_charge_tomorrow.csv', :encoding => 'ISO-8859-1', :headers => true) do |row|
+            puts row.inspect
+            subscription_id = row['susbcription_id']
+            customer_id = row['customer_id']
+            updated_at = row['updated_at']
+            next_charge_scheduled_at = row['next_charge_scheduled_at']
+            status = row['status']
+            product_title = row['product_title']
+            shopify_product_id = row['shopify_product_id']
+            shopify_variant_id = row['shopify_variant_id']
+            mysku = row['sku']
+            raw_line_item_properties = row['raw_line_item_properties']
+            puts "----"
+            puts subscription_id
+
+            temp_sub_info = HTTParty.get("https://api.rechargeapps.com/subscriptions/#{subscription_id}", :headers => @my_header,  :timeout => 80)
+            puts temp_sub_info.inspect
+            puts temp_sub_info.parsed_response['subscription'].inspect
+            puts temp_sub_info.parsed_response['subscription']['product_title']
+            product_title = temp_sub_info.parsed_response['subscription']['product_title']
+            product_id = temp_sub_info.parsed_response['subscription']['shopify_product_id']
+            variant_id = temp_sub_info.parsed_response['subscription']['shopify_variant_id']
+            sku = temp_sub_info.parsed_response['subscription']['sku']
+            my_props = temp_sub_info.parsed_response['subscription']['properties']
+            my_prod_collection = my_props.select {|x| x['name'] == 'product_collection' }
+            product_collection = my_prod_collection.first['value']
+            puts product_collection
+
+            csv_data_out = [subscription_id, customer_id, updated_at, next_charge_scheduled_at, status, product_title, shopify_product_id, shopify_variant_id, mysku, raw_line_item_properties, product_title, product_id, variant_id, sku, product_collection, my_props  ]
+            hdr << csv_data_out
+
+        end
+
+    end
+
+    end
+    #csv part
+
+    def validate_monthly_subs
+        puts "Starting validation monthly subs"
+
+        File.delete('validation_monthly_subs.csv') if File.exist?('validation_monthly_subs.csv')
+
+        #Headers for CSV
+        column_header = ["susbcription_id", "address_id", "customer_id", "created_at", "updated_at", "next_charge_scheduled_at", "price", "status", "product_title", "shopify_product_id", "shopify_variant_id", "sku", "raw_line_item_properties", "new_title", "new_product_id", "new_variant_id", "new_sku", "product_collection", "new_properties"]
+
+        CSV.open('validation_monthly_subs.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
+            column_header = nil
+
+
+        CSV.foreach('testing_monthly_subs_6_9.csv', :encoding => 'ISO-8859-1', :headers => true) do |row|
+            puts row.inspect
+            
+            subscription_id = row['subscription_id']
+            address_id = row['address_id']
+            customer_id = row['customer_id']
+            created_at = row['created_at']
+            updated_at = row['updated_at']
+            next_charge_scheduled_at = row['next_charge_scheduled_at']
+            my_product_title = row['product_title']
+            price = row['price']
+            status = row['status']
+            shopify_product_id = row['shopify_product_id']
+            shopify_variant_id = row['shopify_variant_id']
+            mysku = row['sku']
+            raw_line_item_properties = row['raw_line_item_properties']
+
+            puts "----"
+            puts subscription_id
+
+            temp_sub_info = HTTParty.get("https://api.rechargeapps.com/subscriptions/#{subscription_id}", :headers => @my_header,  :timeout => 80)
+            puts temp_sub_info.inspect
+            if temp_sub_info.parsed_response['errors'] == "Not Found"
+                csv_data_out = [subscription_id, address_id, customer_id, created_at, updated_at, next_charge_scheduled_at, price, status, my_product_title, shopify_product_id, shopify_variant_id, mysku, raw_line_item_properties, "Not Found", "Not Found", "Not Found", "Not Found", "Not Found", "Not Found"  ]
+                hdr << csv_data_out
+            else
+            puts temp_sub_info.parsed_response['subscription'].inspect
+            puts temp_sub_info.parsed_response['subscription']['product_title']
+            
+            product_title = temp_sub_info.parsed_response['subscription']['product_title']
+            product_id = temp_sub_info.parsed_response['subscription']['shopify_product_id']
+            variant_id = temp_sub_info.parsed_response['subscription']['shopify_variant_id']
+            sku = temp_sub_info.parsed_response['subscription']['sku']
+            my_props = temp_sub_info.parsed_response['subscription']['properties']
+            my_prod_collection = my_props.select {|x| x['name'] == 'product_collection' }
+            product_collection = ""
+            if my_prod_collection == []
+                product_collection = ""
+            else
+                product_collection = my_prod_collection.first['value']
+                puts product_collection
+            end
+            
+
+            csv_data_out = [subscription_id, address_id, customer_id, created_at, updated_at, next_charge_scheduled_at, price, status, my_product_title, shopify_product_id, shopify_variant_id, mysku, raw_line_item_properties, product_title, product_id, variant_id, sku, product_collection, my_props  ]
+            hdr << csv_data_out
+            end
+
+
+
+        end
+
+        end
+        #end csv
+
+
+    end
+
+
+    def validate_prepaid_orders
+        puts "Starting validation of prepaid orders"
+
+        File.delete('validation_prepaid_orders.csv') if File.exist?('validation_prepaid_orders.csv')
+
+        #Headers for CSV
+        column_header = ["order_id", "scheduled_at", "customer_id", "title", "shopify_product_id", "shopify_variant_id", "first_name", "last_name", "email", "old_line_items", "new_product_title", "new_shopify_product_id", "new_shopify_variant_id",  "new_sku", "subscription_id", "new_product_collection", "subscription_product_collection", "match", "new_properties"]
+
+        CSV.open('validation_prepaid_orders.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
+            column_header = nil
+
+
+        CSV.foreach('ghost_allocation_test_orders_6_9_changed.csv', :encoding => 'ISO-8859-1', :headers => true) do |row|
+            puts row.inspect
+
+            puts "------"
+
+            order_id = row['order_id']
+            scheduled_at = row['scheduled_at']
+            customer_id = row['customer_id']
+            title = row['title']
+            shopify_product_id = row['shopify_product_id']
+            shopify_variant_id = row['shopify_variant_id']
+            first_name = row['first_name']
+            last_name = row['last_name']
+            email = row['email']
+            line_items = row['line_items']
+
+            #GET /orders/<order_id>
+            temp_order_info = HTTParty.get("https://api.rechargeapps.com/orders/#{order_id}", :headers => @my_header,  :timeout => 80)
+
+            puts temp_order_info.inspect
+            order_info = temp_order_info.parsed_response['order']
+            puts order_info.inspect
+            new_product_title = order_info['line_items'].first.dig('product_title')
+            
+            new_shopify_product_id = order_info['line_items'].first.dig('shopify_product_id')
+            new_shopify_variant_id = order_info['line_items'].first.dig('shopify_variant_id')
+            new_sku = order_info['line_items'].first.dig('sku')
+            product_collection_array = order_info['line_items'].first.dig('properties')
+            subscription_id = order_info['line_items'].first.dig('subscription_id')
+            puts new_product_title
+            puts new_shopify_product_id
+            puts new_shopify_variant_id
+            product_collection_hash = product_collection_array.select { |x| x['name'] == 'product_collection' }
+            product_collection = product_collection_hash.first['value']
+            puts product_collection
+
+            temp_sub_info = HTTParty.get("https://api.rechargeapps.com/subscriptions/#{subscription_id}", :headers => @my_header,  :timeout => 80)
+
+            my_props = temp_sub_info.parsed_response['subscription']['properties']
+            my_prod_collection = my_props.select {|x| x['name'] == 'product_collection' }
+            sub_product_collection = my_prod_collection.first['value']
+            match = ( product_collection == sub_product_collection ? true : false )
+
+
+
+            csv_data_out = [order_id, scheduled_at, customer_id, title, shopify_product_id, shopify_variant_id, first_name, last_name, email, line_items, new_product_title, new_shopify_product_id, new_shopify_variant_id, new_sku, subscription_id, product_collection, sub_product_collection, match, product_collection_array  ]
+            hdr << csv_data_out
+
+
+        end
+
+
+    end
+    end
+    #CSV out
+
+    def validate_parent_subs
+        puts "Validating parent subs to prepaid orders"
+
+        File.delete('validation_parent_subs.csv') if File.exist?('validation_parent_subs.csv')
+
+        #Headers for CSV
+        column_header = ["subscription_id", "address_id", "customer_id", "created_at", "updated_at", "next_charge_scheduled_at", "price", "status", "title", "shopify_product_id", "shopify_variant_id", "sku", "raw_line_item_properties",  "new_product_tile", "new_product_id", "new_variant_id", "new_sku", "old_product_collection", "new_product_collection", "new_properties"]
+
+        CSV.open('validation_parent_subs.csv','a+', :write_headers=> true, :headers => column_header) do |hdr|
+            column_header = nil
+
+        CSV.foreach('elliestaging_order_subs.csv', :encoding => 'ISO-8859-1', :headers => true) do |row|
+            puts row.inspect
+            puts "-----------"
+            subscription_id = row['susbcription_id']
+            address_id = row['address_id']
+            customer_id = row['customer_id']
+            created_at = row['created_at']
+            updated_at = row['updated_at']
+            next_charge_scheduled_at = row['next_charge_scheduled_at']
+            price = row['price']
+            status = row['status']
+            title = row['title']
+            shopify_product_id = row['shopify_product_id']
+            shopify_variant_id = row['shopify_variant_id']
+            sku = row['sku']
+            raw_line_item_properties = row['raw_line_item_properties']
+
+            properties_to_array = eval(raw_line_item_properties)
+            puts properties_to_array.inspect
+            old_product_collection = properties_to_array.select { |x| x['name'] == 'product_collection'}
+            puts "--------------"
+            puts old_product_collection.inspect
+            my_old_product_collection = old_product_collection.first['value']
+            puts "-------------"
+
+
+            temp_sub_info = HTTParty.get("https://api.rechargeapps.com/subscriptions/#{subscription_id}", :headers => @my_header,  :timeout => 80)
+
+            puts temp_sub_info.inspect
+
+            puts temp_sub_info.parsed_response['subscription'].inspect
+            puts temp_sub_info.parsed_response['subscription'].dig('product_title')
+            
+            new_product_title = temp_sub_info.parsed_response['subscription'].dig('product_title')
+            new_product_id = temp_sub_info.parsed_response['subscription'].dig('shopify_product_id')
+            new_variant_id = temp_sub_info.parsed_response['subscription'].dig('shopify_variant_id')
+            new_sku = temp_sub_info.parsed_response['subscription'].dig('sku')
+            my_props = temp_sub_info.parsed_response['subscription']['properties']
+            my_prod_collection = my_props.select {|x| x['name'] == 'product_collection' }
+            new_product_collection = my_prod_collection.first['value']
+
+            csv_data_out = [subscription_id, address_id, customer_id, created_at, updated_at, next_charge_scheduled_at, price, status, title, shopify_product_id, shopify_variant_id, sku, raw_line_item_properties, new_product_title, new_product_id, new_variant_id, new_sku, my_old_product_collection, new_product_collection, my_prod_collection  ]
+            hdr << csv_data_out
+
+
+        end
+        end
+        #end of CSV
 
 
     end

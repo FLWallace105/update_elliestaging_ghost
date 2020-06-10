@@ -87,5 +87,26 @@ task :update_prepaid_charging_tomorrow do |t|
     FixSubInfo::SubUpdater.new.update_prepaid_charging_tomorrow
 end
 
+desc 'validate allocation prepaid subs no order'
+task :validate_allocation_prepaid_sub_no_order do |t|
+    FixSubInfo::SubUpdater.new.subs_no_queued_orders
+end
+
+desc 'validate monthly subs allocation'
+task :validate_monthly_subs do |t|
+    FixSubInfo::SubUpdater.new.validate_monthly_subs
+end
+
+desc 'validate prepaid orders'
+task :validate_prepaid_orders do |t|
+    FixSubInfo::SubUpdater.new.validate_prepaid_orders
+end
+
+desc 'validate parent subs for prepaid orders'
+task :validate_parent_subs do |t|
+    FixSubInfo::SubUpdater.new.validate_parent_subs
+end
+
+
 
 end
