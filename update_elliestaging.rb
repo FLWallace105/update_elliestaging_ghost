@@ -27,6 +27,78 @@ module FixSubInfo
       
     end
 
+
+    def list_webhooks
+        #GET /webhooks
+
+        my_webhooks = HTTParty.get("https://api.rechargeapps.com/webhooks", :headers => @my_header,  :timeout => 80)
+        puts my_webhooks.inspect
+        temp_webhooks = my_webhooks.parsed_response['webhooks']
+        temp_webhooks.each do |myw|
+            puts myw
+        end
+
+    end
+
+    def update_customers_with_new_token
+        #update customers with new token all those migrated
+        puts "Setting up customers for updating payment token"
+        update_token_customers = "insert into update_token_customers (customer_id, customer_hash, shopify_customer_id, email, created_at, updated_at, first_name, last_name, billing_address1, billing_address2, billing_zip, billing_province, billing_country, billing_phone, processor_type, status ) select customer_id, customer_hash, shopify_customer_id, email, created_at, updated_at, first_name, last_name, billing_address1, billing_address2, billing_zip, billing_province, billing_country, billing_phone, processor_type, status from customers where  (DATE(created_at) = \'2019-05-14\'  or DATE(created_at) = \'2019-05-15\' or DATE(created_at) = \'2019-05-16\' )"
+        UpdateTokenCustomers.delete_all
+        ActiveRecord::Base.connection.reset_pk_sequence!('update_token_customers')
+        ActiveRecord::Base.connection.execute(update_token_customers)
+        puts "All done setting up customers to have their payment token updated"
+
+
+
+
+
+
+    end
+
+    def update_customers_token
+        my_now = Time.now
+        my_customers = UpdateTokenCustomers.where("updated = ?", false) 
+        my_customers.each do |my_cust|
+            puts my_cust.inspect  
+            #fix
+            #PUT /customers/<customer_id>
+            my_body = {"stripe_customer_token": "cus_HUR1JwpJm7kJms"}.to_json
+            customer = HTTParty.put("https://api.rechargeapps.com/customers/#{my_cust.customer_id}", :headers => @my_change_header, :body => my_body, :timeout => 80)
+            puts customer.inspect 
+            if customer.code == 200
+                my_cust.updated = true
+                time_updated = DateTime.now
+                time_updated_str = time_updated.strftime("%Y-%m-%d %H:%M:%S")
+                my_cust.token_updated = time_updated_str
+                my_cust.save
+                puts "Updated customer id #{my_cust.customer_id}"
+
+            else
+                puts "Could not update customer id #{my_cust.customer_id} with new payment token"
+
+            end
+
+            my_current = Time.now
+            duration = (my_current - my_now).ceil
+            puts "Been running #{duration} seconds"
+            if duration > 480
+                puts "Been running more than 8 minutes must exit"
+                break
+            end
+
+
+            
+
+            
+        end
+        puts "Done with this session of updating Customers."
+    
+    end
+
+
+
+
     def setup_subs_updating_new_charge_date
         puts "Starting setup"
 

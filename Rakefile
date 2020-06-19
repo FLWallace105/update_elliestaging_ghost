@@ -13,6 +13,22 @@ task :setup_elliestaging_subs_new_date do |t|
     FixSubInfo::SubUpdater.new.setup_subs_updating_new_charge_date
 end
 
+desc 'list webhooks'
+task :list_webhooks do |t|
+    FixSubInfo::SubUpdater.new.list_webhooks
+end
+
+desc 'set up customers to have their payment tokens updated'
+task :setup_customers_tokens do |t|
+    FixSubInfo::SubUpdater.new.update_customers_with_new_token
+end
+
+desc 'update migrated customers with new token'
+task :update_customers_new_token do |t|
+    FixSubInfo::SubUpdater.new.update_customers_token
+end
+
+
 desc 'fix the missing next_charge_scheduled_at date for subs'
 task :fix_next_charge_scheduled_at do |t|
     FixSubInfo::SubUpdater.new.fix_subs_null_next_charge_date

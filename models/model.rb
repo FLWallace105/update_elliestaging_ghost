@@ -15,6 +15,11 @@ class SubscriptionsUpdated < ActiveRecord::Base
   class Customer < ActiveRecord::Base
     self.table_name = 'customers'
   end
+
+  class UpdateTokenCustomers < ActiveRecord::Base
+    self.table_name = 'update_token_customers'
+
+  end
   
   class Order < ActiveRecord::Base
     self.primary_key = :order_id
