@@ -56,6 +56,23 @@ module FixSubInfo
 
     end
 
+    def determine_limits(recharge_header, limit)
+        puts "recharge_header = #{recharge_header}"
+        my_numbers = recharge_header.split("/")
+        my_numerator = my_numbers[0].to_f
+        my_denominator = my_numbers[1].to_f
+        my_limits = (my_numerator/ my_denominator)
+        puts "We are using #{my_limits} % of our API calls"
+        if my_limits > limit
+            puts "Sleeping 15 seconds"
+            sleep 15
+        else
+            puts "not sleeping at all"
+        end
+    
+      end
+
+
     def update_customers_token
         my_now = Time.now
         my_customers = UpdateTokenCustomers.where("updated = ?", false) 
@@ -66,6 +83,9 @@ module FixSubInfo
             my_body = {"stripe_customer_token": "cus_HUR1JwpJm7kJms"}.to_json
             customer = HTTParty.put("https://api.rechargeapps.com/customers/#{my_cust.customer_id}", :headers => @my_change_header, :body => my_body, :timeout => 80)
             puts customer.inspect 
+            recharge_limit = customer.response["x-recharge-limit"]
+            determine_limits(recharge_limit, 0.65)
+
             if customer.code == 200
                 my_cust.updated = true
                 time_updated = DateTime.now
